@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ==========================================
   # 1. Database PostgreSQL di Server Homelab
@@ -45,7 +43,7 @@ services:
   # 3. WhatsApp Gateway (Evolution API)
   # ==========================================
   finbot-wa:
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.1.1
     container_name: finbot_evolution
     restart: unless-stopped
     ports:
