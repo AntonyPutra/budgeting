@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinBot — Homelab Financial Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Background Glow Accents -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand-area">
+        <div class="brand-icon">🤖</div>
+        <div>
+          <div class="brand-title">FinBot <span class="badge-production">PROD</span></div>
+          <div class="brand-subtitle">Personal Financial Engine • Tonyy</div>
+        </div>
+      </div>
+
+      <div class="header-status">
+        <div class="server-pill">
+          <span class="status-dot"></span>
+          <span>ThinkCentre Tiny • <code>100.73.16.92</code></span>
+        </div>
+        <div class="time-pill" id="live-clock">--:--:-- WIB</div>
+        <button id="open-chat-btn" class="btn btn-primary">
+          <span>💬</span> Test Chat
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="dashboard-content">
+      <!-- 4 Stat Cards -->
+      <section class="stats-grid">
+        <div class="card stat-card card-income">
+          <div class="stat-header">
+            <span class="stat-label">Total Pemasukan</span>
+            <span class="stat-icon">📈</span>
+          </div>
+          <div class="stat-value" id="stat-income">Rp0</div>
+          <div class="stat-desc">Bulan Berjalan</div>
+        </div>
+
+        <div class="card stat-card card-expense">
+          <div class="stat-header">
+            <span class="stat-label">Total Pengeluaran</span>
+            <span class="stat-icon">📉</span>
+          </div>
+          <div class="stat-value" id="stat-expense">Rp0</div>
+          <div class="stat-desc" id="stat-savings">Selisih: Rp0</div>
+        </div>
+
+        <div class="card stat-card card-ratio">
+          <div class="stat-header">
+            <span class="stat-label">Rasio Needs vs Wants</span>
+            <span class="stat-icon">⚖️</span>
+          </div>
+          <div class="stat-value" id="stat-ratio">0% : 0%</div>
+          <div class="ratio-bar-wrapper">
+            <div class="ratio-bar-needs" id="bar-needs" style="width: 50%;"></div>
+            <div class="ratio-bar-wants" id="bar-wants" style="width: 50%;"></div>
+          </div>
+          <div class="ratio-legend">
+            <span>Needs: <b id="text-needs">Rp0</b></span>
+            <span>Wants: <b id="text-wants">Rp0</b></span>
+          </div>
+        </div>
+
+        <div class="card stat-card card-microleak">
+          <div class="stat-header">
+            <span class="stat-label">Radar Bocor Halus</span>
+            <span class="stat-icon">⚠️</span>
+          </div>
+          <div class="stat-value text-amber" id="stat-microleak">Rp0</div>
+          <div class="stat-badge-leak" id="stat-leak-count">0 Transaksi Impulsif</div>
+        </div>
+      </section>
+
+      <!-- Middle Grid: Category Breakdown & User Rules -->
+      <section class="middle-grid">
+        <!-- Categories -->
+        <div class="card section-card">
+          <div class="card-title">
+            <span>📊 Pengeluaran per Kategori</span>
+            <span class="refresh-indicator" id="refresh-time">Sinkron</span>
+          </div>
+          <div class="category-list" id="category-list">
+            <div class="empty-state">Memuat data kategori...</div>
+          </div>
+        </div>
+
+        <!-- User Rules -->
+        <div class="card section-card">
+          <div class="card-title">
+            <span>🧠 Aturan & Kebiasaan User (PostgreSQL)</span>
+            <span class="badge-count" id="rules-count">0 Aturan</span>
+          </div>
+          <div class="rules-list" id="rules-list">
+            <div class="empty-state">Memuat aturan user...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom: Recent Transactions -->
+      <section class="card section-card">
+        <div class="card-title">
+          <span>🧾 10 Transaksi Terakhir</span>
+          <button id="refresh-btn" class="btn btn-secondary btn-sm">🔄 Refresh Data</button>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Waktu (WIB)</th>
+                <th>Tipe</th>
+                <th>Kategori</th>
+                <th>Deskripsi</th>
+                <th>Kelas</th>
+                <th>Radar Bocor</th>
+                <th style="text-align: right;">Nominal</th>
+              </tr>
+            </thead>
+            <tbody id="transaction-rows">
+              <tr>
+                <td colspan="7" class="text-center">Memuat riwayat transaksi...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Chat Drawer / Modal -->
+  <div class="modal-backdrop" id="chat-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="brand-area">
+          <div class="brand-icon">💬</div>
+          <div>
+            <div class="modal-title">FinBot WhatsApp Simulator</div>
+            <div class="brand-subtitle">Kirim pesan seolah-olah via WhatsApp</div>
+          </div>
+        </div>
+        <button id="close-chat-btn" class="modal-close">&times;</button>
+      </div>
+
+      <div class="chat-messages" id="chat-history">
+        <div class="chat-bubble bubble-bot">
+          Halo Tonyy! Ketik pengeluaranmu (misal: <i>"bensin motor 30k"</i> atau <i>"kopi 25rb"</i>) untuk menguji parsing AI secara real-time.
+        </div>
+      </div>
+
+      <form id="chat-form" class="chat-input-area">
+        <input 
+          type="text" 
+          id="chat-input" 
+          placeholder="Ketik pesan..." 
+          autocomplete="off" 
+          required
+        />
+        <button type="submit" class="btn btn-primary" id="send-chat-btn">Kirim</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,76 +1,131 @@
+version: '3.8'
+
 services:
   # ==========================================
-  # 1. PostgreSQL Database Service
-  # Persistensi ke host: /opt/finbot/data/postgres
+  # 1. Database PostgreSQL di Server Homelab
+  # Port 5434 hanya di-bind ke IP Tailscale
   # ==========================================
-  postgres:
+  finbot-db:
     image: postgres:16-alpine
-    container_name: finbot-postgres
+    container_name: finbot_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-finbot}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-finbot_homelab_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-monthlybudget}
+      POSTGRES_DB: finbot_db
+      POSTGRES_USER: finbot_user
+      POSTGRES_PASSWORD: supersecretfinbot2026
       TZ: Asia/Jakarta
+    ports:
+      # Hanya bisa diakses dari MacBook lewat Tailscale via TablePlus
+      - "100.73.16.92:5434:5432"
     volumes:
-      # Arahkan ke storage server host untuk kemudahan backup cronjob
-      - /opt/finbot/data/postgres:/var/lib/postgresql/data
+      - finbot_pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
-      - budget_net
+      - finbot_net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-finbot} -d ${POSTGRES_DB:-monthlybudget}"]
+      test: ["CMD-SHELL", "pg_isready -U finbot_user -d finbot_db"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # ==========================================
-  # 2. FinBot AI Engine Backend
+  # 2. Redis untuk Session Evolution API
   # ==========================================
-  finbot-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: finbot-app
+  finbot-redis:
+    image: redis:7-alpine
+    container_name: finbot_redis
     restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    ports:
-      - "3000:3000"
-    environment:
-      PORT: 3000
-      NODE_ENV: production
-      TZ: Asia/Jakarta
-      # Database URL menuju service postgres di jaringan internal budget_net
-      DATABASE_URL: "postgresql://${POSTGRES_USER:-finbot}:${POSTGRES_PASSWORD:-finbot_homelab_secret}@postgres:5432/${POSTGRES_DB:-monthlybudget}?schema=public"
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
-      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-http://evolution-api:8080}
-      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
-      EVOLUTION_INSTANCE_NAME: ${EVOLUTION_INSTANCE_NAME:-finbot}
-      TONYY_WHATSAPP_NUMBER: ${TONYY_WHATSAPP_NUMBER:-6281234567890}
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+    command: redis-server --appendonly yes
+    volumes:
+      - finbot_redisdata:/data
     networks:
-      - budget_net
+      - finbot_net
 
   # ==========================================
-  # 3. Evolution API (WhatsApp Gateway)
-  # Uncomment jika ingin dijalankan dalam compose yang sama
+  # 3. WhatsApp Gateway (Evolution API)
   # ==========================================
-  # evolution-api:
-  #   image: atendai/evolution-api:v2.1.2
-  #   container_name: finbot-evolution-api
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     SERVER_URL: http://localhost:8080
-  #     AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
-  #     DATABASE_ENABLED: "false"
-  #   networks:
-  #     - budget_net
+  finbot-wa:
+    image: atendai/evolution-api:v2.1.1
+    container_name: finbot_evolution
+    restart: unless-stopped
+    ports:
+      - "8081:8080" # Port 8080 server sudah dipakai bukutamu_web
+    environment:
+      - SERVER_URL=http://100.73.16.92:8081
+      - AUTHENTICATION_API_KEY=finbotsecretkey2026
+      - DATABASE_ENABLED=true
+      - DATABASE_CONNECTION_URI=postgresql://finbot_user:supersecretfinbot2026@finbot-db:5432/finbot_db?schema=evolution
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://finbot-redis:6379/1
+    volumes:
+      - finbot_instances:/evolution/instances
+    depends_on:
+      - finbot-db
+      - finbot-redis
+    networks:
+      - finbot_net
+
+  # ==========================================
+  # 4. Backend Engine (FinBot AI Engine)
+  # ==========================================
+  finbot-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: finbot_backend
+    restart: unless-stopped
+    ports:
+      - "8001:8000" # Expose ke 8001 (8000 sudah dipakai sihelp_backend)
+    environment:
+      - PORT=8000
+      - TZ=Asia/Jakarta
+      - NODE_ENV=production
+      - DB_HOST=finbot-db
+      - DB_PORT=5432
+      - DB_USER=finbot_user
+      - DB_PASSWORD=supersecretfinbot2026
+      - DB_NAME=finbot_db
+      - DATABASE_URL=postgresql://finbot_user:supersecretfinbot2026@finbot-db:5432/finbot_db?schema=public
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}
+      - WA_GATEWAY_URL=http://finbot-wa:8080
+      - WA_GATEWAY_API_KEY=finbotsecretkey2026
+      - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME:-finbot}
+      - TONYY_WHATSAPP_NUMBER=${TONYY_WHATSAPP_NUMBER:-6281234567890}
+    depends_on:
+      finbot-db:
+        condition: service_healthy
+      finbot-wa:
+        condition: service_started
+    networks:
+      - finbot_net
+
+  # ==========================================
+  # 5. Web Dashboard (FinBot UI)
+  # ==========================================
+  finbot-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: finbot_web
+    restart: unless-stopped
+    ports:
+      - "3002:3000" # Expose ke 3002 (3000 sudah dipakai ftikfest-web)
+    environment:
+      - PORT=3000
+      - BACKEND_API_URL=http://finbot-backend:8000
+      - PUBLIC_BACKEND_URL=http://100.73.16.92:8001
+    depends_on:
+      - finbot-backend
+    networks:
+      - finbot_net
+
+volumes:
+  finbot_pgdata:
+  finbot_redisdata:
+  finbot_instances:
 
 networks:
-  budget_net:
-    name: budget_net
+  finbot_net:
+    name: finbot_net
     driver: bridge
