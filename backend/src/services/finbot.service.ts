@@ -18,7 +18,9 @@ export class FinbotService {
   static async processUserMessage(
     senderPhone: string,
     messageText: string,
-    sendWhatsAppReply = true
+    sendWhatsAppReply = true,
+    userName = 'Tonyy',
+    recipientTargetPhone?: string
   ): Promise<ProcessMessageResult> {
     // 1. Ambil runtime context dinamis dari PostgreSQL
     const recentTransactions = await TransactionService.getRecentTransactions(5);
@@ -49,7 +51,9 @@ export class FinbotService {
         if (finbotResponse.payload.transactions?.length > 0) {
           executionDetails = await TransactionService.createTransactions(
             finbotResponse.payload.transactions,
-            messageText
+            messageText,
+            userName,
+            senderPhone
           );
         }
         break;
@@ -92,9 +96,10 @@ export class FinbotService {
       }
     }
 
-    // 5. Kirim balasan WhatsApp langsung ke Tonyy via Evolution API jika diminta
-    if (sendWhatsAppReply && senderPhone) {
-      await EvolutionApiService.sendTextMessage(senderPhone, finbotResponse.reply_message);
+    // 5. Kirim balasan WhatsApp langsung ke target (DM pengirim atau Grup) via Evolution API
+    const target = recipientTargetPhone || senderPhone;
+    if (sendWhatsAppReply && target) {
+      await EvolutionApiService.sendTextMessage(target, finbotResponse.reply_message);
     }
 
     return {

@@ -16,6 +16,8 @@ model Transaction {
   description String?  @db.Text
   isMicroLeak Boolean  @default(false) @map("is_micro_leak")
   rawMessage  String?  @map("raw_message") @db.Text
+  userName    String?  @default("Tonyy") @map("user_name") @db.VarChar(50)
+  senderPhone String?  @map("sender_phone") @db.VarChar(30)
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
 
   @@index([createdAt], map: "idx_transactions_created_at")

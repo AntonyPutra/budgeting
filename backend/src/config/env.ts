@@ -24,6 +24,9 @@ const envSchema = z.object({
   WA_GATEWAY_API_KEY: z.string().optional().default('finbotsecretkey2026'),
   EVOLUTION_INSTANCE_NAME: z.string().optional().default('finbot'),
   TONYY_WHATSAPP_NUMBER: z.string().optional().default('6281234567890'),
+  GIRLFRIEND_WHATSAPP_NUMBER: z.string().optional().default(''),
+  GIRLFRIEND_NAME: z.string().optional().default('Pacar'),
+  ALLOWED_NUMBERS: z.string().optional().default(''), // e.g. "6281234567890,6289876543210"
 
   // Legacy/Fallback Webhook Secret
   WEBHOOK_SECRET: z.string().optional().default('finbotsecretkey2026'),

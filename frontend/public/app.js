@@ -151,6 +151,7 @@ function renderTransactions(transactions) {
       return `
       <tr>
         <td style="color: var(--text-muted); font-size: 12px;">${t.created_at || '-'}</td>
+        <td><span class="badge" style="background: rgba(255,255,255,0.08); font-weight: 600;">${t.user_name || 'Tonyy'}</span></td>
         <td>${typeBadge}</td>
         <td><b>${t.category}</b></td>
         <td>${t.desc || t.description || '-'}</td>

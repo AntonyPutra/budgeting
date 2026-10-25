@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS transactions (
     description TEXT,
     is_micro_leak BOOLEAN DEFAULT FALSE,
     raw_message TEXT,
+    user_name VARCHAR(50) DEFAULT 'Tonyy',
+    sender_phone VARCHAR(30),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

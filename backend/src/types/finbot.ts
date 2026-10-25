@@ -48,6 +48,7 @@ export interface RecentTransactionContext {
   category: string;
   class: string;
   desc: string;
+  user_name?: string;
   created_at: string; // YYYY-MM-DD HH:mm:ss (WIB)
 }
 

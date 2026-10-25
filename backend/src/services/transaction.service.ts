@@ -35,17 +35,20 @@ export class TransactionService {
         category: r.category,
         class: r.class,
         desc: r.description || '',
+        user_name: r.userName || 'Tonyy',
         created_at: formattedTime,
       };
     });
   }
 
   /**
-   * Menyimpan 1 atau beberapa transaksi baru (CREATE)
+   * Menyimpan 1 atau beberapa transaksi baru (CREATE) dengan pencatatan nama pengirim
    */
   static async createTransactions(
     items: FinbotTransactionItem[],
-    rawMessage?: string
+    rawMessage?: string,
+    userName = 'Tonyy',
+    senderPhone?: string
   ) {
     const createdList = [];
     for (const item of items) {
@@ -58,6 +61,8 @@ export class TransactionService {
           description: item.description,
           isMicroLeak: item.is_micro_leak,
           rawMessage: rawMessage || null,
+          userName: userName || 'Tonyy',
+          senderPhone: senderPhone || null,
           createdAt: new Date(),
         },
       });
@@ -154,9 +159,11 @@ export class TransactionService {
     let microLeakCount = 0;
 
     const categoryBreakdown: Record<string, number> = {};
+    const userBreakdown: Record<string, number> = {};
 
     for (const t of transactions) {
       const amt = Number(t.amount);
+      const user = t.userName || 'Tonyy';
       if (t.type === 'EXPENSE') {
         totalExpense += amt;
         if (t.class === 'Needs') needsTotal += amt;
@@ -168,6 +175,7 @@ export class TransactionService {
 
         categoryBreakdown[t.category] =
           (categoryBreakdown[t.category] || 0) + amt;
+        userBreakdown[user] = (userBreakdown[user] || 0) + amt;
       } else if (t.type === 'INCOME') {
         totalIncome += amt;
       }
@@ -184,11 +192,13 @@ export class TransactionService {
       microLeakTotal,
       microLeakCount,
       categoryBreakdown,
+      userBreakdown,
       transactionCount: transactions.length,
       transactions: transactions.map((t) => ({
         ...t,
         id: Number(t.id),
         amount: Number(t.amount),
+        user_name: t.userName || 'Tonyy',
       })),
     };
   }
@@ -204,12 +214,20 @@ export class TransactionService {
     microLeakTotal: number;
     microLeakCount: number;
     categoryBreakdown: Record<string, number>;
+    userBreakdown?: Record<string, number>;
   }): string {
     const lines = [
       `- Total Masuk: Rp${summary.totalIncome.toLocaleString('id-ID')}`,
       `- Total Keluar: Rp${summary.totalExpense.toLocaleString('id-ID')}`,
       `- Needs (Esensial): Rp${summary.needsTotal.toLocaleString('id-ID')} | Wants: Rp${summary.wantsTotal.toLocaleString('id-ID')}`,
     ];
+
+    if (summary.userBreakdown && Object.keys(summary.userBreakdown).length > 1) {
+      const userText = Object.entries(summary.userBreakdown)
+        .map(([u, a]) => `${u} (Rp${a.toLocaleString('id-ID')})`)
+        .join(' | ');
+      lines.push(`- Alokasi: ${userText}`);
+    }
 
     if (summary.microLeakTotal > 0) {
       lines.push(

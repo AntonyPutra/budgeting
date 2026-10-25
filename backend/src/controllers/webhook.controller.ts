@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { FinbotService } from '../services/finbot.service.js';
 import { TransactionService } from '../services/transaction.service.js';
 import { RuleService } from '../services/rule.service.js';
+import { env } from '../config/env.js';
 
 export class WebhookController {
   /**
@@ -22,13 +23,17 @@ export class WebhookController {
         }
 
         const remoteJid = msgData.key?.remoteJid || '';
-        // Bersihkan remoteJid (misal: "6281234567890@s.whatsapp.net" -> "6281234567890")
-        const phoneNumber = remoteJid.replace(/@.*$/, '');
 
-        // Abaikan pesan broadcast status / grup jika diinginkan
+        // Abaikan pesan broadcast status
         if (remoteJid.includes('status@broadcast')) {
           return res.status(200).json({ status: 'ignored_status_broadcast' });
         }
+
+        const isGroup = remoteJid.endsWith('@g.us');
+        // Jika dari grup, cari participant pengirim aslinya
+        const rawParticipant = msgData.key?.participant || msgData.participant || remoteJid;
+        const senderPhone = rawParticipant.replace(/@.*$/, '');
+        const replyTarget = remoteJid; // kirim balik ke grup jika dari grup, atau ke nomor jika DM
 
         const messageText =
           msgData.message?.conversation ||
@@ -39,31 +44,68 @@ export class WebhookController {
           return res.status(200).json({ status: 'ignored_empty_message' });
         }
 
-        console.log(`[Evolution Webhook] Pesan dari ${phoneNumber}: "${messageText}"`);
+        // Identifikasi Nama Pengirim (Tonyy vs Pacar)
+        const tonyyNumber = env.TONYY_WHATSAPP_NUMBER?.replace(/\D/g, '') || '';
+        const girlfriendNumber = env.GIRLFRIEND_WHATSAPP_NUMBER?.replace(/\D/g, '') || '';
+        const cleanedSender = senderPhone.replace(/\D/g, '');
 
-        // Proses FinBot dan kirim balik via Evolution API
+        let senderName = 'Tonyy';
+        if (girlfriendNumber && cleanedSender.endsWith(girlfriendNumber.slice(-8))) {
+          senderName = env.GIRLFRIEND_NAME || 'Pacar';
+        } else if (tonyyNumber && cleanedSender.endsWith(tonyyNumber.slice(-8))) {
+          senderName = 'Tonyy';
+        } else if (msgData.pushName) {
+          senderName = msgData.pushName;
+        }
+
+        // Whitelist Security: Hanya izinkan Tonyy & Pacar jika nomor dikonfigurasi
+        const allowedList = [
+          tonyyNumber,
+          girlfriendNumber,
+          ...(env.ALLOWED_NUMBERS ? env.ALLOWED_NUMBERS.split(',').map((s) => s.trim().replace(/\D/g, '')) : []),
+        ].filter(Boolean);
+
+        if (allowedList.length > 0) {
+          const isAllowed = allowedList.some((num) => cleanedSender.endsWith(num.slice(-8)));
+          if (!isAllowed) {
+            console.log(`[Security] Mengabaikan pesan dari pengirim tak terdaftar: ${senderPhone}`);
+            return res.status(200).json({ status: 'ignored_unauthorized_sender' });
+          }
+        }
+
+        console.log(`[Evolution Webhook] [${senderName} (${senderPhone})] ${isGroup ? '[Grup]' : '[DM]'}: "${messageText}"`);
+
+        // Sisipkan konteks nama pengirim jika belum ada di chat agar AI paham
+        const contextualMessage = `[Pengirim: ${senderName}] ${messageText}`;
+
+        // Proses FinBot dan kirim balik via Evolution API ke replyTarget (DM atau Grup)
         const result = await FinbotService.processUserMessage(
-          phoneNumber,
-          messageText,
-          true
+          senderPhone,
+          contextualMessage,
+          true,
+          senderName,
+          replyTarget
         );
 
         return res.status(200).json({
           success: true,
+          sender: senderName,
           reply: result.replyMessage,
           data: result.finbotResponse,
         });
       }
 
-      // 2. Tangani Generic Payload: { from: "...", message: "..." }
+      // 2. Tangani Generic Payload: { from: "...", message: "...", name?: "..." }
       let phoneNumber = body.from || body.sender || '';
       let messageText = body.message || body.text || '';
+      let senderName = body.name || 'Tonyy';
 
       if (phoneNumber && messageText.trim()) {
         const result = await FinbotService.processUserMessage(
           String(phoneNumber),
           String(messageText),
-          body.sendWhatsApp !== false // default true jika tidak dispesifikasikan false
+          body.sendWhatsApp !== false,
+          senderName
         );
 
         return res.status(200).json({
@@ -93,7 +135,7 @@ export class WebhookController {
     try {
       const summary = await TransactionService.getMonthlySummary();
       const rules = await RuleService.getActiveRules();
-      const recent = await TransactionService.getRecentTransactions(10);
+      const recent = await TransactionService.getRecentTransactions(15);
 
       return res.json({
         success: true,
