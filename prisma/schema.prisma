@@ -1,0 +1,63 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           Int             @id @default(autoincrement())
+  phoneNumber  String          @unique
+  name         String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  transactions Transaction[]
+  rules        UserRule[]
+  budgets      MonthlyBudget[]
+}
+
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // "EXPENSE" | "INCOME"
+  amount      Int      // Nominal Rupiah bersih
+  category    String   // "F&B" | "Transportasi" | "Kebutuhan Harian" | "Tagihan & Langganan" | "Wants & Hiburan" | "Kesehatan" | "Lain-lain"
+  class       String   // "Needs" | "Wants"
+  description String
+  isMicroLeak Boolean  @default(false)
+  timestamp   DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId, timestamp])
+}
+
+model UserRule {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ruleText  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model MonthlyBudget {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month       Int      // 1 - 12
+  year        Int      // Misal 2026
+  totalBudget Int      @default(0)
+  needsBudget Int      @default(0)
+  wantsBudget Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, month, year])
+}
