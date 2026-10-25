@@ -13,7 +13,7 @@ RUN apk add --no-cache openssl libc6-compat
 COPY package*.json tsconfig.json ./
 COPY prisma ./prisma/
 
-RUN npm ci
+RUN npm install
 
 COPY src ./src/
 RUN npm run build
@@ -34,7 +34,7 @@ ENV NODE_ENV=production
 ENV PORT=8000
 
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
