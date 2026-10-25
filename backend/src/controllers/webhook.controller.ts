@@ -95,10 +95,10 @@ export class WebhookController {
         });
       }
 
-      // 2. Tangani Generic Payload: { from: "...", message: "...", name?: "..." }
-      let phoneNumber = body.from || body.sender || '';
+      // 2. Tangani Generic Payload: { from/senderPhone: "...", message: "...", name/userName?: "..." }
+      let phoneNumber = body.from || body.sender || body.senderPhone || '';
       let messageText = body.message || body.text || '';
-      let senderName = body.name || 'Tonyy';
+      let senderName = body.name || body.userName || 'Tonyy';
 
       if (phoneNumber && messageText.trim()) {
         const result = await FinbotService.processUserMessage(

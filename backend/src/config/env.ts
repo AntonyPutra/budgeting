@@ -10,7 +10,7 @@ const envSchema = z.object({
 
   // Google Gemini API
   GEMINI_API_KEY: z.string().optional().default(''),
-  GEMINI_MODEL: z.string().default('gemini-2.5-flash'),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash-lite'),
 
   // PostgreSQL Database
   DATABASE_URL: z

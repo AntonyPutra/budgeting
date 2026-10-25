@@ -52,7 +52,9 @@ services:
       - SERVER_URL=http://100.73.16.92:8081
       - AUTHENTICATION_API_KEY=finbotsecretkey2026
       - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
       - DATABASE_CONNECTION_URI=postgresql://finbot_user:supersecretfinbot2026@finbot-db:5432/finbot_db?schema=evolution
+      - DATABASE_CONNECTION_CLIENT_NAME=finbot_wa
       - CACHE_REDIS_ENABLED=true
       - CACHE_REDIS_URI=redis://finbot-redis:6379/1
     volumes:

@@ -18,8 +18,10 @@ export class GeminiService {
       );
     }
 
-    const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    let model = env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+    if (model === 'gemini-2.5-flash' || model === 'gemini-1.5-flash') {
+      model = 'gemini-3.5-flash-lite';
+    }
 
     const requestBody = {
       contents: [
@@ -37,13 +39,28 @@ export class GeminiService {
       },
     };
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
-    });
+    const callApi = async (targetModel: string) => {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+      return await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+    };
+
+    let response = await callApi(model);
+
+    // Fallback jika model utama sedang busy atau deprecated
+    if (!response.ok && (response.status === 404 || response.status === 503)) {
+      const fallbackModel = model === 'gemini-3.5-flash-lite' ? 'gemini-3.5-flash' : 'gemini-3.5-flash-lite';
+      console.warn(`[GeminiService] Model ${model} returned ${response.status}. Retrying with ${fallbackModel}...`);
+      const fallbackResponse = await callApi(fallbackModel);
+      if (fallbackResponse.ok) {
+        response = fallbackResponse;
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -51,8 +68,9 @@ export class GeminiService {
     }
 
     const data = (await response.json()) as any;
-    const rawText =
-      data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const textPart = parts.find((p: any) => p && typeof p.text === 'string');
+    const rawText = textPart?.text?.trim() || '';
 
     if (!rawText) {
       throw new Error('Gemini API mengembalikan respons kosong.');
