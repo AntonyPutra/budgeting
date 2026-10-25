@@ -13,8 +13,8 @@ services:
       POSTGRES_PASSWORD: supersecretfinbot2026
       TZ: Asia/Jakarta
     ports:
-      # Hanya bisa diakses dari MacBook lewat Tailscale via TablePlus
-      - "100.73.16.92:5434:5432"
+      # Hanya bisa diakses dari MacBook lewat Tailscale via TablePlus (default: 100.73.16.92 di server, 127.0.0.1 jika di Mac)
+      - "${DB_HOST_BIND:-100.73.16.92}:5434:5432"
     volumes:
       - finbot_pgdata:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
